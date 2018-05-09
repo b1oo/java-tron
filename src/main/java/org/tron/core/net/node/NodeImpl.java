@@ -384,9 +384,15 @@ public class NodeImpl extends PeerConnectionDelegate implements Node {
   }
 
   private void consumerAdvObjToFetch() {
-    Collection<PeerConnection> filterActivePeer = getActivePeer().stream()
+    AtomicLong batchFecthResponseSize = new AtomicLong(0);
+    getActivePeer().stream()
+        .filter(peer -> peer.isBusy()).forEach(
+            peer -> batchFecthResponseSize.addAndGet(peer.getAdvObjWeRequested().size()));
+
+    Collection<PeerConnection> idleActivePeer = getActivePeer().stream()
         .filter(peer -> !peer.isBusy()).collect(Collectors.toList());
-    if (advObjToFetch.isEmpty() || filterActivePeer.isEmpty()) {
+
+    if (advObjToFetch.isEmpty() || idleActivePeer.isEmpty() || batchFecthResponseSize.get() >= BATCH_FETCH_RESPONSE_SIZE) {
       try {
         Thread.sleep(100);
         return;
@@ -395,9 +401,8 @@ public class NodeImpl extends PeerConnectionDelegate implements Node {
       }
     }
     InvToSend sendPackage = new InvToSend();
-    AtomicLong batchFecthResponseSize = new AtomicLong(0);
     advObjToFetch.entrySet().forEach(idToFetch -> {
-      filterActivePeer.stream().filter(peer -> peer.getAdvObjSpreadToUs().containsKey(idToFetch.getKey()))
+      idleActivePeer.stream().filter(peer -> peer.getAdvObjSpreadToUs().containsKey(idToFetch.getKey()))
       .findFirst().ifPresent(peer -> {
         //TODO: don't fetch too much obj from only one peer
         sendPackage.add(idToFetch, peer);
@@ -1072,6 +1077,7 @@ public class NodeImpl extends PeerConnectionDelegate implements Node {
     //todo: check this peer's advertise history and the history of our request to this peer.
     //simple implement here first
     List<Sha256Hash> fetchList = new ArrayList<>();
+
     msg.getBlockIds().forEach(hash -> {
       //TODO: Check this block whether we need it,Use peer.invToUs and peer.invWeAdv.
       logger.info("We will fetch " + hash + " from " + peer);

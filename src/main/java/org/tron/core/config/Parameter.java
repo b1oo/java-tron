@@ -19,7 +19,7 @@ public interface Parameter {
   }
 
   interface NodeConstant {
-    long SYNC_RETURN_BATCH_NUM = 1000;
+    long SYNC_RETURN_BATCH_NUM = 200;
     long SYNC_FETCH_BATCH_NUM = 2000;
     long MAX_BLOCKS_IN_PROCESS = 400;
     long MAX_BLOCKS_ALREADY_FETCHED = 800;
